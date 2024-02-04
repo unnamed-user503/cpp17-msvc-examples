@@ -65,3 +65,4 @@ OutputDir = "%{cfg.architecture}-%{cfg.system}-%{cfg.buildcfg:lower()}"
 include "Vendor/Premake5/Customization/Core.lua"
 
 include "Projects/Example1/Build.lua"
+include "Projects/Example2/Build.lua"
