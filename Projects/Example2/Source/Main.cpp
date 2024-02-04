@@ -19,7 +19,7 @@ int main()
 
     values.erase(position5); // std::vectorの場合要素の移動が発生していると古いiteratorは無効な場所を指している
 
-    for (auto& iterator : values)
+    for (auto&& iterator : values)
     {
         std::cout << "value = " << iterator << std::endl; // 5は表示されない
     }
