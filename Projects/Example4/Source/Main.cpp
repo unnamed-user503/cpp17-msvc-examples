@@ -136,9 +136,11 @@ void ExampleCallback(Audio::Format::Riff::Chunk const& chunk, std::uint32_t cons
 
 int main()
 {
+    std::locale::global(std::locale(".UTF8"));
+
     try
     {
-        wil::unique_hfile file(::CreateFile("Assets/file_example_WAV_1MG.wav", GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, 0, NULL));
+        wil::unique_hfile file(::CreateFile("Assets/file_example_AVI_1920_2_3MG.avi", GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, 0, NULL));
 
         THROW_LAST_ERROR_IF(!file);
 

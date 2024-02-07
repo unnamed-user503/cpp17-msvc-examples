@@ -8,3 +8,5 @@
 
 *.wav binary
 *.ogg binary
+
+*.avi binary
