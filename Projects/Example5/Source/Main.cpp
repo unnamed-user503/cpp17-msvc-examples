@@ -54,13 +54,13 @@ int main()
     ::SetThreadpoolCallbackCleanupGroup(&CallbackEnviron, pCleanupGroup, CleanupGroupCancelCallback);
 
     // CreateThreadpool 関数は、既定のスレッド プールから、プライベート プール オブジェクトを完全に独立した作成します。
-    PTP_POOL pThreadpool = ::CreateThreadpool(nullptr);
+    PTP_POOL pPool = ::CreateThreadpool(nullptr);
 
-    ::SetThreadpoolThreadMinimum(pThreadpool, 1); // 指定したスレッド プールがコールバックの処理に使用できるようにする必要があるスレッドの最小数を設定します。
-    ::SetThreadpoolThreadMaximum(pThreadpool, 3); // 指定したスレッド プールがコールバックを処理するために割り当てることができるスレッドの最大数を設定します。
+    ::SetThreadpoolThreadMinimum(pPool, 1); // 指定したスレッド プールがコールバックの処理に使用できるようにする必要があるスレッドの最小数を設定します。
+    ::SetThreadpoolThreadMaximum(pPool, 3); // 指定したスレッド プールがコールバックを処理するために割り当てることができるスレッドの最大数を設定します。
 
     // コールバックの生成時に使用するスレッド プールを設定します。
-    ::SetThreadpoolCallbackPool(&CallbackEnviron, pThreadpool);
+    ::SetThreadpoolCallbackPool(&CallbackEnviron, pPool);
 
     PTP_WORK pWork1 = ::CreateThreadpoolWork(WorkCallback, &value1, &CallbackEnviron);
     PTP_WORK pWork2 = ::CreateThreadpoolWork(WorkCallback, &value2, &CallbackEnviron);
@@ -77,8 +77,8 @@ int main()
     // 指定したクリーンアップ グループを閉じます。
     ::CloseThreadpoolCleanupGroup(pCleanupGroup);
 
-    // プライベートプールオブジェクトを破棄する
-    ::CloseThreadpool(pThreadpool);
+    // 指定したスレッド プールを閉じます。
+    ::CloseThreadpool(pPool);
 
     // 指定したコールバック環境を削除します。 新しいスレッド プール オブジェクトを作成するためにコールバック環境が不要になった場合は、この関数を呼び出します。
     ::DestroyThreadpoolEnvironment(&CallbackEnviron);
