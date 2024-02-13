@@ -23,7 +23,10 @@ void CALLBACK WorkCallback(PTP_CALLBACK_INSTANCE pInstance, PVOID pContext, PTP_
 
 void CALLBACK CleanupGroupCancelCallback(void* pObjectContext, void* pCleanupContext)
 {
-    std::cout << "pObjectContext=" << reinterpret_cast<std::uint64_t>(pObjectContext) << ", pCleanupContext=" << reinterpret_cast<std::uint64_t>(pCleanupContext) << std::endl;
+    {
+        std::lock_guard guard{ g_ConsoleWriteLock };
+        std::cout << "pObjectContext=" << reinterpret_cast<std::uint64_t>(pObjectContext) << ", pCleanupContext=" << reinterpret_cast<std::uint64_t>(pCleanupContext) << std::endl;
+    }
 
     UserDefineContext* pContext = reinterpret_cast<UserDefineContext*>(pObjectContext);
 
@@ -70,6 +73,9 @@ int main()
 
     // 指定したクリーンアップ グループのメンバーを解放し、すべてのコールバック関数が完了するまで待機し、必要に応じて未処理のコールバック関数を取り消します。
     ::CloseThreadpoolCleanupGroupMembers(pCleanupGroup, FALSE, nullptr);
+
+    // 指定したクリーンアップ グループを閉じます。
+    ::CloseThreadpoolCleanupGroup(pCleanupGroup);
 
     // プライベートプールオブジェクトを破棄する
     ::CloseThreadpool(pThreadpool);
