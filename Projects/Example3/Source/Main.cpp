@@ -1,5 +1,3 @@
-#include "Pch.hpp"
-
 #include <iostream>
 #include <list>
 #include <functional>

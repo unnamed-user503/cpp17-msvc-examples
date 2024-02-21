@@ -1,4 +1,3 @@
-#include "Pch.hpp"
 #include <iostream>
 #include <mutex>
 #include <Windows.h>

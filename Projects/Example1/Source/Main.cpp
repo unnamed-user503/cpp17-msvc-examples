@@ -1,4 +1,3 @@
-#include "Pch.hpp"
 #include <iostream>
 
 struct Lambda
