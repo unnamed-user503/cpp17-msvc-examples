@@ -64,6 +64,11 @@ OutputDir = "%{cfg.architecture}-%{cfg.system}-%{cfg.buildcfg:lower()}"
 
 include "Vendor/Premake5/Customization/Core.lua"
 
+group "Dependencies"
+	include "Vendor/libogg/Build.lua"
+	include "Vendor/libvorbis/Build.lua"
+group ""
+
 include "Projects/Example1/Build.lua"
 include "Projects/Example2/Build.lua"
 include "Projects/Example3/Build.lua"
@@ -72,3 +77,4 @@ include "Projects/Example5/Build.lua"
 include "Projects/Example6/Build.lua"
 include "Projects/Example7/Build.lua"
 include "Projects/Example8/Build.lua"
+include "Projects/Example9/Build.lua"
