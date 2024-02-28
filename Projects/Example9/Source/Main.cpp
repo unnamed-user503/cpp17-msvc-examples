@@ -37,7 +37,7 @@ int main()
 
     OggVorbis_File file{};
 
-    auto error = ::ov_fopen(R"(G:\Develop\Assets\Audio\Ogg\sample-file-4.ogg)", &file);
+    auto error = ::ov_fopen(R"(G:\Develop\Assets\Audio\Ogg\sample-file-1.ogg)", &file);
 
     switch (error)
     {
@@ -81,6 +81,10 @@ int main()
         std::cout << "WaveFormat.BytesPerSecond  = " << waveFormat.BytesPerSecond  << std::endl;
         std::cout << "WaveFormat.ExtraFormatSize = " << waveFormat.ExtraFormatSize << std::endl;
 
+        std::cout << "ov_raw_total  = " << ::ov_raw_total(&file, -1)  << " bytes." << std::endl;
+        std::cout << "ov_pcm_total  = " << ::ov_pcm_total(&file, -1)  << " bytes." << std::endl;
+        std::cout << "ov_time_total = " << ::ov_time_total(&file, -1) << " seconds." << std::endl;
+
         THROW_IF_FAILED(::XAudio2Create(xaudio2.put()));
         THROW_IF_FAILED(xaudio2->CreateMasteringVoice(&pMasteringVoice));
         THROW_IF_FAILED(xaudio2->CreateSourceVoice(&pSourceVoice, reinterpret_cast<WAVEFORMATEX*>(&waveFormat)));
@@ -95,6 +99,8 @@ int main()
         buffers.emplace_back(std::make_unique<char[]>(4096));
         buffers.emplace_back(std::make_unique<char[]>(4096));
         buffers.emplace_back(std::make_unique<char[]>(4096));
+        buffers.emplace_back(std::make_unique<char[]>(4096));
+        buffers.emplace_back(std::make_unique<char[]>(4096));
 
         int buffersIndex = 0;
 
@@ -106,16 +112,33 @@ int main()
                 continue;
             }
 
-            auto length = ::ov_read(&file, buffers.at(buffersIndex).get(), 4096, 0, 2, 1, &bitStream);
+            auto result = ::ov_read(&file, buffers.at(buffersIndex).get(), 4096, 0, 2, 1, &bitStream);
 
-            if (length <= 0)
+            if (result == 0)
             {
-                std::cout << "End of stream. (length = " << length << ")" << std::endl;
+                std::cout << "End of stream. (length = " << result << ")" << std::endl;
                 break;
+            }
+            else if (result == OV_HOLE)
+            {
+                std::cerr << "OV_HOLEはデータに中断があった。(ページ間のゴミ、同期が失われた後の再キャプチャ、破損したページのいずれか)" << std::endl;
+                continue;
+            }
+            else if (result == OV_EBADLINK)
+            {
+                throw std::runtime_error("libvorbisfile に無効なストリームセクションが与えられたか、 要求されたリンクが壊れている。");
+            }
+            else if (result == OV_EINVAL)
+            {
+                throw std::runtime_error("最初のファイルヘッダが読み取れなかったか、壊れているか、ov_fopenの最初のオープンコールに失敗した。");
+            }
+            else if (result < 0)
+            {
+                throw std::runtime_error("unknown error.");
             }
 
             xaudio2Buffer.Flags      = 0;
-            xaudio2Buffer.AudioBytes = length;
+            xaudio2Buffer.AudioBytes = result;
             xaudio2Buffer.pAudioData = reinterpret_cast<BYTE const*>(buffers.at(buffersIndex).get());
 
             THROW_IF_FAILED(pSourceVoice->SubmitSourceBuffer(&xaudio2Buffer));
