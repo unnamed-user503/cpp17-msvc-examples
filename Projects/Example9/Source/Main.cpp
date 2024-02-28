@@ -1,12 +1,43 @@
 #include <iostream>
+#include <memory>
+#include <vector>
 
+#include <Windows.h>
+#include <xaudio2.h>
+
+#include <wil/result.h>
+#include <wil/com.h>
 #include <vorbis/vorbisfile.h>
+
+namespace N503::Audio::Format::Wave
+{
+#pragma pack(push)
+#pragma pack(1)
+
+    struct WaveFormatEx // msut be 18 bytes
+    {
+        std::uint16_t AudioFormat;
+        std::uint16_t Channels;
+        std::uint32_t SamplePerSecond;
+        std::uint32_t BytesPerSecond;
+        std::uint16_t BlockAlign;
+        std::uint16_t BitsPerSample;
+        std::uint16_t ExtraFormatSize;
+    };
+
+#pragma pack(pop)
+}
 
 int main()
 {
+    std::locale::global(std::locale(".UTF8"));
+
+    // COMライブラリを初期化し必要に応じてスレッドの新しいアパートメントを作成します。
+    auto&& CoUninitializeReservedCall = wil::CoInitializeEx();
+
     OggVorbis_File file{};
 
-    auto error = ::ov_fopen(R"(G:\Develop\Assets\Audio\Ogg\sample-file-1.ogg)", &file);
+    auto error = ::ov_fopen(R"(G:\Develop\Assets\Audio\Ogg\sample-file-4.ogg)", &file);
 
     switch (error)
     {
@@ -20,6 +51,10 @@ int main()
         }
     }
 
+    wil::com_ptr<IXAudio2> xaudio2;
+    IXAudio2MasteringVoice* pMasteringVoice{};
+    IXAudio2SourceVoice*    pSourceVoice{};
+
     try
     {
         auto pVorbisInfo = ::ov_info(&file, 0);
@@ -29,14 +64,69 @@ int main()
             throw std::runtime_error("vorbis_info failed.");
         }
 
-        std::cout << "vorbis_info.version         = " << pVorbisInfo->version         << std::endl; // Vorbisのエンコーダバージョンです。再生にはあまり関係がありません。
-        std::cout << "vorbis_info.channels        = " << pVorbisInfo->channels        << std::endl; // ビットストリームのチャンネル数です。モノラルなら1、ステレオなら2などです。
-        std::cout << "vorbis_info.rate            = " << pVorbisInfo->rate            << std::endl; // ンプリングレートです。44100のようなサンプリングレート数が入ります。
-        std::cout << "vorbis_info.bitrate_upper   = " << pVorbisInfo->bitrate_upper   << std::endl; // 可変長ビットレート（VBR : Variable Bit Rate）の情報です。
-        std::cout << "vorbis_info.bitrate_nominal = " << pVorbisInfo->bitrate_nominal << std::endl; // 可変長ビットレート（VBR : Variable Bit Rate）の情報です。
-        std::cout << "vorbis_info.bitrate_lower   = " << pVorbisInfo->bitrate_lower   << std::endl; // 可変長ビットレート（VBR : Variable Bit Rate）の情報です。
-        std::cout << "vorbis_info.bitrate_window  = " << pVorbisInfo->bitrate_window  << std::endl; // 現在使用されていません。
-        std::cout << "vorbis_info.codec_setup     = " << reinterpret_cast<std::uint64_t>(pVorbisInfo->codec_setup) << std::endl; // コーデックに必要な情報へのポインタが返ります。これも再生には必要ありません。
+        N503::Audio::Format::Wave::WaveFormatEx waveFormat{};
+        waveFormat.AudioFormat     = 1; // WAVE_FORMAT_PCM
+        waveFormat.BitsPerSample   = 16;
+        waveFormat.Channels        = pVorbisInfo->channels;
+        waveFormat.SamplePerSecond = pVorbisInfo->rate;
+        waveFormat.BlockAlign      = waveFormat.BitsPerSample / 8 * waveFormat.Channels;
+        waveFormat.BytesPerSecond  = waveFormat.SamplePerSecond * waveFormat.BlockAlign;
+        waveFormat.ExtraFormatSize = 0;
+
+        std::cout << "WaveFormat.AudioFormat     = " << waveFormat.AudioFormat     << std::endl;
+        std::cout << "WaveFormat.BitsPerSample   = " << waveFormat.BitsPerSample   << std::endl;
+        std::cout << "WaveFormat.Channels        = " << waveFormat.Channels        << std::endl;
+        std::cout << "WaveFormat.SamplePerSecond = " << waveFormat.SamplePerSecond << std::endl;
+        std::cout << "WaveFormat.BlockAlign      = " << waveFormat.BlockAlign      << std::endl;
+        std::cout << "WaveFormat.BytesPerSecond  = " << waveFormat.BytesPerSecond  << std::endl;
+        std::cout << "WaveFormat.ExtraFormatSize = " << waveFormat.ExtraFormatSize << std::endl;
+
+        THROW_IF_FAILED(::XAudio2Create(xaudio2.put()));
+        THROW_IF_FAILED(xaudio2->CreateMasteringVoice(&pMasteringVoice));
+        THROW_IF_FAILED(xaudio2->CreateSourceVoice(&pSourceVoice, reinterpret_cast<WAVEFORMATEX*>(&waveFormat)));
+        THROW_IF_FAILED(pSourceVoice->Start());
+
+        XAUDIO2_BUFFER      xaudio2Buffer{};
+        XAUDIO2_VOICE_STATE xaudio2VoiceState{};
+
+        int bitStream{};
+
+        std::vector<std::unique_ptr<char[]>> buffers;
+        buffers.emplace_back(std::make_unique<char[]>(4096));
+        buffers.emplace_back(std::make_unique<char[]>(4096));
+        buffers.emplace_back(std::make_unique<char[]>(4096));
+
+        int buffersIndex = 0;
+
+        while (true)
+        {
+            if (pSourceVoice->GetState(&xaudio2VoiceState), xaudio2VoiceState.BuffersQueued >= buffers.size())
+            {
+                ::Sleep(1);
+                continue;
+            }
+
+            auto length = ::ov_read(&file, buffers.at(buffersIndex).get(), 4096, 0, 2, 1, &bitStream);
+
+            if (length <= 0)
+            {
+                std::cout << "End of stream. (length = " << length << ")" << std::endl;
+                break;
+            }
+
+            xaudio2Buffer.Flags      = 0;
+            xaudio2Buffer.AudioBytes = length;
+            xaudio2Buffer.pAudioData = reinterpret_cast<BYTE const*>(buffers.at(buffersIndex).get());
+
+            THROW_IF_FAILED(pSourceVoice->SubmitSourceBuffer(&xaudio2Buffer));
+
+            buffersIndex = (++buffersIndex) % buffers.size();
+        }
+
+        while (pSourceVoice->GetState(&xaudio2VoiceState), xaudio2VoiceState.BuffersQueued > 0)
+        {
+            ::Sleep(1);
+        }
     }
     catch (std::exception const& exception)
     {
@@ -45,6 +135,18 @@ int main()
     catch (...)
     {
         std::cerr << "unknown error." << std::endl;
+    }
+
+    if (pSourceVoice)
+    {
+        pSourceVoice->Stop();
+        pSourceVoice->FlushSourceBuffers();
+        pSourceVoice->DestroyVoice();
+    }
+
+    if (pMasteringVoice)
+    {
+        pMasteringVoice->DestroyVoice();
     }
 
     ::ov_clear(&file);
