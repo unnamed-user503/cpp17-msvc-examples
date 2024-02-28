@@ -88,11 +88,11 @@ int main()
         int bitStream{};
 
         std::vector<std::unique_ptr<std::int16_t[]>> buffers;
-        buffers.emplace_back(std::make_unique<std::int16_t[]>(8096));
-        buffers.emplace_back(std::make_unique<std::int16_t[]>(8096));
-        buffers.emplace_back(std::make_unique<std::int16_t[]>(8096));
-        buffers.emplace_back(std::make_unique<std::int16_t[]>(8096));
-        buffers.emplace_back(std::make_unique<std::int16_t[]>(8096));
+        buffers.emplace_back(std::make_unique<std::int16_t[]>(8192));
+        buffers.emplace_back(std::make_unique<std::int16_t[]>(8192));
+        buffers.emplace_back(std::make_unique<std::int16_t[]>(8192));
+        buffers.emplace_back(std::make_unique<std::int16_t[]>(8192));
+        buffers.emplace_back(std::make_unique<std::int16_t[]>(8192));
 
         int buffersIndex = 0;
 
@@ -104,7 +104,7 @@ int main()
                 continue;
             }
 
-            auto result = ::op_read(file, buffers.at(buffersIndex).get(), 8096, nullptr);
+            auto result = ::op_read(file, buffers.at(buffersIndex).get(), 8192, nullptr);
 
             if (result <= 0)
             {
